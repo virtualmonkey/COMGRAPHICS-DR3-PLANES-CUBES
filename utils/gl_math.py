@@ -1,5 +1,5 @@
 from collections import namedtuple
-import numpy as np
+import math
 
 
 V2 = namedtuple('Point2', ['x', 'y'])
@@ -14,6 +14,9 @@ def deg2rad(degrees):
 def substract(v0, v1):
     return V3(v0.x - v1.x, v0.y - v1.y, v0.z - v1.z)
 
+def sum(v0, v1):
+    return V3(v0.x+v1.x, v0.y+v1.y, v0.z+v1.z)
+
 def sumNPArray(v0, v1):
     return [v0[0]+v1[0], v0[1]+v1[1], v0[2]+v1[2]]
 
@@ -26,6 +29,9 @@ def normNPArray (v0):
         return [0, 0, 0]
 
     return [v0[0]/vLength, v0[1]/vLength, v0[2]/vLength]
+
+def magnitudeNpArray(x): 
+    return math.sqrt(dotNPArray(x,x))
     
 def dotNPArray(v0, v1):
     return v0[0] * v1[0] + v0[1] * v1[1] + v0[2] * v1[2]
