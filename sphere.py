@@ -1,11 +1,10 @@
 import numpy as np
-from utils.gl_math import norm, PI,  V2, V3, substractNPArray, dotNPArray, normNPArray, sumNPArray, magnitudeNpArray
+from utils.gl_math import norm, PI,  V2, V3, substract, dot, cross, substractNPArray, dotNPArray, normNPArray, multiplyConstant, multiplyColor, sumNPArray, magnitudeNpArray
 from utils.gl_color import color
 
 OPAQUE = 0
 REFLECTIVE = 1
 TRANSPARENT = 2
-
 
 WHITE = color(1,1,1)
 
@@ -28,6 +27,7 @@ class Material(object):
         self.matType = matType
         self.ior = ior
         
+
 class Intersect(object):
     def __init__(self, distance, point, normal, sceneObject):
         self.distance = distance
@@ -72,7 +72,7 @@ class Sphere(object):
 class Plane(object):
     def __init__(self, position, normal, material):
         self.position = position
-        self.normal = normNPArray(normal)
+        self.normal = normal / np.linalg.norm(normal)
         self.material = material
 
     def ray_intersect(self, orig, dir):
@@ -149,3 +149,8 @@ class AABB(object):
                          point = intersect.point,
                          normal = intersect.normal,
                          sceneObject = self)
+
+
+
+
+

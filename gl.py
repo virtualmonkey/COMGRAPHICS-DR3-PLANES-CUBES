@@ -3,7 +3,7 @@ from utils.gl_color import color
 import struct
 import random
 import numpy as np
-from utils.gl_math import norm, PI,  V2, V3, substract, dot, cross, substractNPArray, dotNPArray, normNPArray, multiplyConstant, multiplyColor, sumNPArray
+from utils.gl_math import norm, PI,  V2, V3, substract, dot, cross, substractNPArray, dotNPArray, normNPArray, multiplyConstant, multiplyColor, sumNPArray, magnitudeNpArray
 from numpy import matrix, cos, sin, tan
 
 from obj import Obj
@@ -30,10 +30,10 @@ def baryCoords(A, B, C, P):
 
 def reflectVector(normal, dirVector):
     # R = 2 * (N dot L) * N - L
-    reflect = 2 * np.dot(normal, dirVector)
-    reflect = np.multiply(reflect, normal)
-    reflect = np.subtract(reflect, dirVector)
-    reflect = reflect / np.linalg.norm(reflect)
+    reflect = 2 * dotNPArray(normal, dirVector)
+    reflect = multiplyConstant(reflect, normal)
+    reflect = substractNPArray(reflect, dirVector)
+    reflect = normNPArray(reflect)
     return reflect
 
 def refractVector(N, I, ior):
@@ -41,7 +41,7 @@ def refractVector(N, I, ior):
     # I = incident vector
     # ior = index of refraction
     # Snell's Law
-    cosi = max(-1, min(1, np.dot(I, N)))
+    cosi = max(-1, min(1, dotNPArray(I, N)))
     etai = 1
     etat = ior
 
@@ -58,13 +58,13 @@ def refractVector(N, I, ior):
         return None
     
     R = eta * np.array(I) + (eta * cosi - k**0.5) * N
-    return R / np.linalg.norm(R)
+    return normNPArray(R)
 
 def fresnel(N, I, ior):
     # N = normal
     # I = incident vector
     # ior = index of refraction
-    cosi = max(-1, min(1, np.dot(I, N)))
+    cosi = max(-1, min(1, dotNPArray(I, N)))
     etai = 1
     etat = ior
 
@@ -247,7 +247,7 @@ class Raytracer(object):
 
                 #Nuestra camara siempre esta viendo hacia -Z
                 direction = V3(Px, Py, -1)
-                direction = direction / np.linalg.norm(direction)
+                direction = normNPArray(direction)
 
                 self.glVertex_coord(x, y, self.castRay(self.camPosition, direction))
 
@@ -294,8 +294,8 @@ class Raytracer(object):
         shadow_intensity = 0
 
         # Direccion de vista
-        view_dir = np.subtract(self.camPosition, intersect.point)
-        view_dir = view_dir / np.linalg.norm(view_dir)
+        view_dir = substractNPArray(self.camPosition, intersect.point)
+        view_dir = normNPArray(view_dir)
 
         if self.ambientLight:
             ambientColor = np.array([self.ambientLight.strength * self.ambientLight.color[2] / 255,
@@ -304,11 +304,11 @@ class Raytracer(object):
 
         if self.pointLight:
             # Sacamos la direccion de la luz para este punto
-            light_dir = np.subtract(self.pointLight.position, intersect.point)
-            light_dir = light_dir / np.linalg.norm(light_dir)
+            light_dir = substractNPArray(self.pointLight.position, intersect.point)
+            light_dir = normNPArray(light_dir)
 
             # Calculamos el valor del diffuse color
-            intensity = self.pointLight.intensity * max(0, np.dot(light_dir, intersect.normal))
+            intensity = self.pointLight.intensity * max(0, dotNPArray(light_dir, intersect.normal))
             diffuseColor = np.array([intensity * self.pointLight.color[2] / 255,
                                      intensity * self.pointLight.color[1] / 255,
                                      intensity * self.pointLight.color[2] / 255])
@@ -317,14 +317,14 @@ class Raytracer(object):
             reflect = reflectVector(intersect.normal, light_dir) # Reflejar el vector de luz
 
             # spec_intensity: lightIntensity * ( view_dir dot reflect) ** especularidad
-            spec_intensity = self.pointLight.intensity * (max(0, np.dot(view_dir, reflect)) ** material.spec)
+            spec_intensity = self.pointLight.intensity * (max(0, dotNPArray(view_dir, reflect)) ** material.spec)
             specColor = np.array([spec_intensity * self.pointLight.color[2] / 255,
                                   spec_intensity * self.pointLight.color[1] / 255,
                                   spec_intensity * self.pointLight.color[0] / 255])
 
 
             shadMat, shadInter = self.scene_intercept(intersect.point,  light_dir, intersect.sceneObject)
-            if shadInter is not None and shadInter.distance < np.linalg.norm(np.subtract(self.pointLight.position, intersect.point)):
+            if shadInter is not None and shadInter.distance < magnitudeNpArray(substractNPArray(self.pointLight.position, intersect.point)):
                 shadow_intensity = 1
 
         
@@ -342,12 +342,12 @@ class Raytracer(object):
 
         elif material.matType == TRANSPARENT:
 
-            outside = np.dot(direction, intersect.normal) < 0
-            bias = multiplyConstant(0.001, intersect.normal)
+            outside = dotNPArray(direction, intersect.normal) < 0
+            bias = 0.001 * intersect.normal
             kr = fresnel(intersect.normal, direction, material.ior)
 
             reflect = reflectVector(intersect.normal, np.array(direction) * -1)
-            reflectOrig = np.add(intersect.point, bias) if outside else np.subtract(intersect.point, bias)
+            reflectOrig = sumNPArray(intersect.point, bias) if outside else substractNPArray(intersect.point, bias)
             reflectColor = self.castRay(reflectOrig, reflect, None, recursion + 1)
             reflectColor = np.array([reflectColor[2] / 255,
                                      reflectColor[1] / 255,
@@ -355,7 +355,7 @@ class Raytracer(object):
 
             if kr < 1:
                 refract = refractVector(intersect.normal, direction, material.ior)
-                refractOrig = np.subtract(intersect.point, bias) if outside else np.add(intersect.point, bias)
+                refractOrig = substractNPArray(intersect.point, bias) if outside else sumNPArray(intersect.point, bias)
                 refractColor = self.castRay(refractOrig, refract, None, recursion + 1)
                 refractColor = np.array([refractColor[2] / 255,
                                          refractColor[1] / 255,
